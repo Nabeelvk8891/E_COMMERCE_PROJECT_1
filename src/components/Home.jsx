@@ -14,15 +14,11 @@ import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
-  // Check if product is already in cart
-  const isInCart = cartItems.some((item) => item.id === product.id);
+  // Ensure cartItems is always an array
+  const isInCart = cartItems.some(
+    (item) => item.productId == product.id || item.id == product.id
+  );
 
-  // Handle add to cart
-  const handleAddToCart = () => {
-    addToCart(product);
-  };
-
-  // Stock status logic
   let stockStatus = "";
   let stockColor = "";
   if (product.stock > 10) {
@@ -38,7 +34,6 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
 
   return (
     <div className="relative bg-gradient-to-b from-gray-100 via-white to-white rounded-xl shadow-md p-2 text-center hover:scale-105 transition w-full min-w-0 flex flex-col overflow-hidden group">
-      {/* Stock badge */}
       <span
         className={`absolute top-3 left-3 px-3 py-0.5 rounded-full text-white text-[10px] sm:text-xs font-semibold bg-gradient-to-r ${stockColor} overflow-hidden z-10`}
       >
@@ -46,11 +41,7 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         <span className="absolute top-0 left-[-100%] w-2/3 h-full bg-white opacity-30 transform -skew-x-12 animate-shimmer"></span>
       </span>
 
-      {/* Product link */}
-      <Link
-        to={`/product/${product.id}`}
-        className="flex-1 flex flex-col relative z-0"
-      >
+      <Link to={`/product/${product.id}`} className="flex-1 flex flex-col relative z-0">
         <img
           src={product.img}
           alt={product.name}
@@ -69,7 +60,6 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         </div>
       </Link>
 
-      {/* Action buttons */}
       {product.stock === 0 ? (
         <button
           disabled
@@ -85,14 +75,13 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         </Link>
       ) : (
         <button
-          onClick={handleAddToCart}
           className="mt-2 w-full py-1.5 sm:py-2 md:py-3 px-2 rounded-lg text-xs sm:text-sm md:text-base font-medium text-white shadow-md bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 hover:shadow-lg transition duration-300"
+          onClick={() => addToCart(product)}
         >
           Add to Cart
         </button>
       )}
 
-      {/* Shimmer effect */}
       <style>{`
         @keyframes shimmer {
           0% { left: -100%; }
