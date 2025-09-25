@@ -9,13 +9,14 @@ import { ShieldCheck, ThumbsUp, Globe } from "lucide-react";
 import { BsSearch } from "react-icons/bs";
 import AdBanner from "./AdBanner";
 
+// Import API instances
 import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
-// ===== ProductCard Component =====
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
+  // ✅ Updated: check if product is in cart correctly
   const isInCart = cartItems.some(
-    (item) => item.productId === product.id || item.id === product.id
+    (item) => item.productId === product.id
   );
 
   let stockStatus = "";
@@ -92,7 +93,6 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
   );
 };
 
-// ===== Home Component =====
 const Home = () => {
   const [products, setProducts] = useState([]);
   const [popup, setPopup] = useState(null);
@@ -110,7 +110,6 @@ const Home = () => {
     return loggedUser ? JSON.parse(loggedUser) : null;
   });
 
-  // Fetch products
   useEffect(() => {
     getProducts()
       .then((data) => setProducts(data))
@@ -120,7 +119,7 @@ const Home = () => {
       });
   }, []);
 
-  // Fetch cart
+  // ✅ Fixed: fetch cart properly on load
   useEffect(() => {
     if (!user) {
       setCartItems([]);
@@ -128,10 +127,12 @@ const Home = () => {
     }
     getCart(user.id)
       .then((res) => setCartItems(res?.data || []))
-      .catch(() => setCartItems([]));
+      .catch((err) => {
+        console.error(err);
+        setCartItems([]);
+      });
   }, [user]);
 
-  // Add to cart (optimized)
   const addToCart = async (product) => {
     if (!user) {
       alert("Please log in to add items to your cart.");
@@ -140,27 +141,48 @@ const Home = () => {
     }
 
     try {
-      const existingItem = cartItems.find((item) => item.productId === product.id);
+      // Update cart locally first
+      setCartItems((prev) => {
+        const existingItem = prev.find((item) => item.productId === product.id);
+        if (existingItem) {
+          return prev.map((item) =>
+            item.productId === product.id
+              ? { ...item, quantity: (item.quantity || 1) + 1 }
+              : item
+          );
+        } else {
+          const today = new Date().toLocaleDateString("en-GB");
+          return [
+            ...prev,
+            {
+              userId: user.id,
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+              mrp: product.mrp,
+              img: product.img,
+              quantity: 1,
+              stock: product.stock,
+              date: today,
+            },
+          ];
+        }
+      });
+
+      // Fetch server cart
+      const cartRes = await getCart(user.id);
+      const cart = cartRes?.data || [];
+      const existingItem = cart.find((item) => item.productId === product.id);
 
       if (existingItem) {
-        // Update locally
-        const updatedCart = cartItems.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: (item.quantity || 1) + 1 }
-            : item
-        );
-        setCartItems(updatedCart);
-
-        // Update server
         await updateCartItem(existingItem.id, {
           ...existingItem,
           quantity: (existingItem.quantity || 1) + 1,
         });
-
         setPopup(`${product.name} quantity updated!`);
       } else {
         const today = new Date().toLocaleDateString("en-GB");
-        const newItem = {
+        await addCartItem({
           userId: user.id,
           productId: product.id,
           name: product.name,
@@ -170,11 +192,13 @@ const Home = () => {
           quantity: 1,
           stock: product.stock,
           date: today,
-        };
-        setCartItems((prev) => [...prev, newItem]);
-        await addCartItem(newItem);
+        });
         setPopup(`${product.name} added to cart!`);
       }
+
+      // ✅ Sync local cart with server
+      const updatedCart = await getCart(user.id);
+      setCartItems(updatedCart?.data || []);
 
       setTimeout(() => setPopup(null), 3000);
     } catch (err) {
@@ -182,19 +206,18 @@ const Home = () => {
     }
   };
 
-  // Search handlers
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
 
-    if (!query.trim()) {
+    if (query.trim() === "") {
       setSearchResults([]);
       setShowSuggestions(false);
       return;
     }
 
-    const results = products.filter((p) =>
-      p.name.toLowerCase().includes(query.toLowerCase())
+    const results = (products || []).filter((product) =>
+      product.name.toLowerCase().includes(query.toLowerCase())
     );
     setSearchResults(results);
     setShowSuggestions(true);
@@ -202,9 +225,10 @@ const Home = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-    const results = products.filter((p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    if (searchQuery.trim() === "") return;
+
+    const results = (products || []).filter((product) =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setSearchResults(results);
     setShowSuggestions(false);
@@ -217,7 +241,9 @@ const Home = () => {
     navigate("/");
   };
 
-  const premiumProducts = products.filter((p) => p.price > 5000).slice(0, 12);
+  const premiumProducts = (products || [])
+    .filter((p) => p.price > 5000)
+    .slice(0, 12);
 
   return (
     <>
