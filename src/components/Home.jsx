@@ -14,24 +14,15 @@ import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
-  const [lockedInCart, setLockedInCart] = useState(false);
+  // Check if product is already in cart
+  const isInCart = cartItems.some((item) => item.id === product.id);
 
-  // Determine if product is in cart from parent
-  const isInCart = cartItems.some(
-    (item) => item.productId === product.id || item.id === product.id
-  );
-
-  useEffect(() => {
-    if (isInCart) {
-      setLockedInCart(true); // lock button if parent says it's in cart
-    }
-  }, [isInCart]);
-
+  // Handle add to cart
   const handleAddToCart = () => {
     addToCart(product);
-    setLockedInCart(true); // lock immediately after click
   };
 
+  // Stock status logic
   let stockStatus = "";
   let stockColor = "";
   if (product.stock > 10) {
@@ -55,7 +46,11 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         <span className="absolute top-0 left-[-100%] w-2/3 h-full bg-white opacity-30 transform -skew-x-12 animate-shimmer"></span>
       </span>
 
-      <Link to={`/product/${product.id}`} className="flex-1 flex flex-col relative z-0">
+      {/* Product link */}
+      <Link
+        to={`/product/${product.id}`}
+        className="flex-1 flex flex-col relative z-0"
+      >
         <img
           src={product.img}
           alt={product.name}
@@ -74,7 +69,7 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         </div>
       </Link>
 
-      {/* Button */}
+      {/* Action buttons */}
       {product.stock === 0 ? (
         <button
           disabled
@@ -82,7 +77,7 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         >
           Out of Stock
         </button>
-      ) : lockedInCart ? (
+      ) : isInCart ? (
         <Link to="/cart">
           <button className="mt-2 w-full py-1.5 sm:py-2 md:py-3 px-2 rounded-lg text-xs sm:text-sm md:text-base font-medium text-white shadow-md bg-gradient-to-r from-green-400 via-green-500 to-green-600 hover:from-green-500 hover:to-green-700 hover:shadow-lg transition duration-300">
             ➜ Go to Cart
@@ -90,13 +85,14 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
         </Link>
       ) : (
         <button
-          className="mt-2 w-full py-1.5 sm:py-2 md:py-3 px-2 rounded-lg text-xs sm:text-sm md:text-base font-medium text-white shadow-md bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 hover:shadow-lg transition duration-300"
           onClick={handleAddToCart}
+          className="mt-2 w-full py-1.5 sm:py-2 md:py-3 px-2 rounded-lg text-xs sm:text-sm md:text-base font-medium text-white shadow-md bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 hover:shadow-lg transition duration-300"
         >
           Add to Cart
         </button>
       )}
 
+      {/* Shimmer effect */}
       <style>{`
         @keyframes shimmer {
           0% { left: -100%; }
@@ -107,6 +103,7 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
     </div>
   );
 };
+
 
 const Home = () => {
   const [products, setProducts] = useState([]); // ✅ always an array
