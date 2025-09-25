@@ -14,9 +14,9 @@ import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
-  // Ensure cartItems is always an array
+  // Check if product is in cart
   const isInCart = cartItems.some(
-    (item) => item.productId == product.id || item.id == product.id
+    (item) => item.productId === product.id
   );
 
   let stockStatus = "";
@@ -110,6 +110,7 @@ const Home = () => {
     return loggedUser ? JSON.parse(loggedUser) : null;
   });
 
+  // Fetch products
   useEffect(() => {
     getProducts()
       .then((data) => setProducts(data))
@@ -119,60 +120,64 @@ const Home = () => {
       });
   }, []);
 
-  // ✅ Fixed: fetch cart properly on load
+  // Fetch cart items whenever user changes
   useEffect(() => {
-    if (!user) {
-      setCartItems([]);
-      return;
-    }
-    getCart(user.id)
-      .then((res) => setCartItems(res?.data || []))
-      .catch((err) => {
+    const fetchCart = async () => {
+      if (!user) {
+        setCartItems([]);
+        return;
+      }
+      try {
+        const cart = await getCart(user.id);
+        setCartItems(cart?.data || cart || []);
+      } catch (err) {
         console.error(err);
         setCartItems([]);
-      });
+      }
+    };
+    fetchCart();
   }, [user]);
 
   const addToCart = async (product) => {
-      if (!user) {
-        alert("Please log in to add items to your cart.");
-        navigate("/login");
-        return;
+    if (!user) {
+      alert("Please log in to add items to your cart.");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const cart = await getCart(user.id);
+      const existingItem = cart.find((item) => item.productId === product.id);
+      const today = new Date().toLocaleDateString("en-GB");
+
+      if (existingItem) {
+        await updateCartItem(existingItem.id, {
+          ...existingItem,
+          quantity: (existingItem.quantity || 1) + 1,
+        });
+        setPopup(`${product.name} quantity updated!`);
+      } else {
+        await addCartItem({
+          userId: user.id,
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          mrp: product.mrp,
+          img: product.img,
+          quantity: 1,
+          stock: product.stock,
+          date: today,
+        });
+        setPopup(`${product.name} added to cart!`);
       }
-  
-      try {
-        const cart = await getCart(user.id);
-        const existingItem = cart.find((item) => item.productId === product.id);
-        const today = new Date().toLocaleDateString("en-GB");
-  
-        if (existingItem) {
-          await updateCartItem(existingItem.id, {
-            ...existingItem,
-            quantity: (existingItem.quantity || 1) + 1,
-          });
-          setPopup(`${product.name} quantity updated!`);
-        } else {
-          await addCartItem({
-            userId: user.id,
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            mrp: product.mrp,
-            img: product.img,
-            quantity: 1,
-            stock: product.stock,
-            date: today,
-          });
-          setPopup(`${product.name} added to cart!`);
-        }
-  
-        const updatedCart = await getCart(user.id);
-        setCartItems(updatedCart);
-        setTimeout(() => setPopup(null), 3000);
-      } catch (err) {
-        console.error("Error adding to cart:", err);
-      }
-    };
+
+      const updatedCart = await getCart(user.id);
+      setCartItems(updatedCart);
+      setTimeout(() => setPopup(null), 3000);
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+    }
+  };
 
   const handleSearchChange = (e) => {
     const query = e.target.value;
@@ -215,6 +220,7 @@ const Home = () => {
 
   return (
     <>
+      {/* Navbar */}
       <div className="nav-div">
         <nav className="flex items-center justify-between px-6 py-3 shadow-md bg-white relative ">
           <div className="logo">
@@ -222,7 +228,7 @@ const Home = () => {
               <img
                 src={logo}
                 alt="Logo"
-                className="w-32 h-12 sm:w-40 sm:h-14 md:w-64 md:h-24 lg:w-40  object-contain"
+                className="w-32 h-12 sm:w-40 sm:h-14 md:w-64 md:h-24 lg:w-40 object-contain"
               />
             </Link>
           </div>
@@ -405,6 +411,7 @@ const Home = () => {
         )}
       </div>
 
+      {/* Products Section */}
       <div className="product-box">
         <div className="p-6 relative">
           {popup && (
@@ -417,6 +424,7 @@ const Home = () => {
           <br />
           <br />
 
+          {/* Features */}
           <div className="bg-white py-3 px-2">
             <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto text-center">
               {/* Authenticity */}
@@ -464,25 +472,28 @@ const Home = () => {
             </div>
           </div>
 
+          {/* New Arrivals */}
           <div className="bg-gradient-to-r from-pink-100 to-purple-100 text-center py-3 px-6 rounded-xl shadow-md mt-8 sm:mt-12 mb-4 sm:mb-6">
             <p className="text-sm sm:text-base md:text-lg font-semibold text-gray-800 tracking-wide">
               ✨ New Arrivals Just Landed – Explore Now!
             </p>
           </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {(searchQuery ? searchResults.slice(-8) : products.slice(-8)).map(
-          (p) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              addToCart={addToCart}
-              cartItems={cartItems}
-            />
-          )
-        )}
-      </div>
+          {/* New Arrivals Grid */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {(searchQuery ? searchResults.slice(-8) : products.slice(-8)).map(
+              (p) => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  addToCart={addToCart}
+                  cartItems={cartItems}
+                />
+              )
+            )}
+          </div>
 
+          {/* Trending Products */}
           <h3 className="bg-gradient-to-r from-pink-100 to-purple-100 py-3 sm:py-5 rounded-xl mt-8 sm:mt-12 mb-4 sm:mb-6 text-sm sm:text-base md:text-lg font-semibold text-gray-800 tracking-wide">
             🔥 Trending Products
           </h3>
@@ -497,6 +508,7 @@ const Home = () => {
             ))}
           </div>
 
+          {/* Premium Collection */}
           <h3 className="bg-gradient-to-r from-pink-100 to-purple-100 py-3 rounded-xl sm:py-5 text-sm sm:text-base md:text-lg font-semibold text-gray-800 tracking-wide mt-8 sm:mt-12 mb-4 sm:mb-6">
             💎 Premium Collection
           </h3>
@@ -527,6 +539,7 @@ const Home = () => {
         </div>
       </div>
 
+      {/* Footer */}
       <footer className="bg-gray-900 text-white mt-12 py-8">
         <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
