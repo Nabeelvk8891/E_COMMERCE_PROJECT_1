@@ -9,14 +9,13 @@ import { ShieldCheck, ThumbsUp, Globe } from "lucide-react";
 import { BsSearch } from "react-icons/bs";
 import AdBanner from "./AdBanner";
 
-// Import API instances
 import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
+// ===== ProductCard Component =====
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
-  // Ensure cartItems is always an array
   const isInCart = cartItems.some(
-    (item) => item.productId == product.id || item.id == product.id
+    (item) => item.productId === product.id || item.id === product.id
   );
 
   let stockStatus = "";
@@ -93,15 +92,15 @@ const ProductCard = ({ product, addToCart, cartItems = [] }) => {
   );
 };
 
-
+// ===== Home Component =====
 const Home = () => {
-  const [products, setProducts] = useState([]); // ✅ always an array
+  const [products, setProducts] = useState([]);
   const [popup, setPopup] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [loginIsOpen, setloginIsOpen] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]); // ✅ always an array
+  const [searchResults, setSearchResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const navigate = useNavigate();
@@ -112,16 +111,16 @@ const Home = () => {
   });
 
   // Fetch products
-useEffect(() => {
-  getProducts()
-    .then((data) => setProducts(data)) // ✅ directly set array
-    .catch((e) => {
-      console.error("Error fetching products:", e);
-      setProducts([]);
-    });
-}, []);
+  useEffect(() => {
+    getProducts()
+      .then((data) => setProducts(data))
+      .catch((e) => {
+        console.error("Error fetching products:", e);
+        setProducts([]);
+      });
+  }, []);
 
-  // Fetch user cart
+  // Fetch cart
   useEffect(() => {
     if (!user) {
       setCartItems([]);
@@ -129,98 +128,73 @@ useEffect(() => {
     }
     getCart(user.id)
       .then((res) => setCartItems(res?.data || []))
-      .catch((err) => {
-        console.error(err);
-        setCartItems([]); // ✅ fallback
-      });
+      .catch(() => setCartItems([]));
   }, [user]);
 
+  // Add to cart (optimized)
   const addToCart = async (product) => {
-  if (!user) {
-    alert("Please log in to add items to your cart.");
-    navigate("/login");
-    return;
-  }
+    if (!user) {
+      alert("Please log in to add items to your cart.");
+      navigate("/login");
+      return;
+    }
 
-  try {
-    // Optimistic update: add/update cart locally first
-    setCartItems((prev) => {
-      const existingItem = prev.find((item) => item.productId === product.id);
+    try {
+      const existingItem = cartItems.find((item) => item.productId === product.id);
+
       if (existingItem) {
-        return prev.map((item) =>
+        // Update locally
+        const updatedCart = cartItems.map((item) =>
           item.productId === product.id
             ? { ...item, quantity: (item.quantity || 1) + 1 }
             : item
         );
+        setCartItems(updatedCart);
+
+        // Update server
+        await updateCartItem(existingItem.id, {
+          ...existingItem,
+          quantity: (existingItem.quantity || 1) + 1,
+        });
+
+        setPopup(`${product.name} quantity updated!`);
       } else {
         const today = new Date().toLocaleDateString("en-GB");
-        return [
-          ...prev,
-          {
-            userId: user.id,
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            mrp: product.mrp,
-            img: product.img,
-            quantity: 1,
-            stock: product.stock,
-            date: today,
-          },
-        ];
+        const newItem = {
+          userId: user.id,
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          mrp: product.mrp,
+          img: product.img,
+          quantity: 1,
+          stock: product.stock,
+          date: today,
+        };
+        setCartItems((prev) => [...prev, newItem]);
+        await addCartItem(newItem);
+        setPopup(`${product.name} added to cart!`);
       }
-    });
 
-    // Then run API calls in the background
-    const cartRes = await getCart(user.id);
-    const cart = cartRes?.data || [];
-    const existingItem = cart.find((item) => item.productId === product.id);
-
-    if (existingItem) {
-      await updateCartItem(existingItem.id, {
-        ...existingItem,
-        quantity: (existingItem.quantity || 1) + 1,
-      });
-      setPopup(`${product.name} quantity updated!`);
-    } else {
-      const today = new Date().toLocaleDateString("en-GB");
-      await addCartItem({
-        userId: user.id,
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        mrp: product.mrp,
-        img: product.img,
-        quantity: 1,
-        stock: product.stock,
-        date: today,
-      });
-      setPopup(`${product.name} added to cart!`);
+      setTimeout(() => setPopup(null), 3000);
+    } catch (err) {
+      console.error("Error adding to cart:", err);
     }
+  };
 
-    // Sync local cart with latest server data
-    const updatedCart = await getCart(user.id);
-    setCartItems(updatedCart?.data || []);
-
-    setTimeout(() => setPopup(null), 3000);
-  } catch (err) {
-    console.error("Error adding to cart:", err);
-  }
-};
-
-
+  // Search handlers
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
 
-    if (query.trim() === "") {
+    if (!query.trim()) {
       setSearchResults([]);
       setShowSuggestions(false);
       return;
     }
 
-    const results = (products || []).filter((product) =>
-      product.name.toLowerCase().includes(query.toLowerCase())
+    const results = products.filter((p) =>
+      p.name.toLowerCase().includes(query.toLowerCase())
     );
     setSearchResults(results);
     setShowSuggestions(true);
@@ -228,10 +202,9 @@ useEffect(() => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    if (searchQuery.trim() === "") return;
-
-    const results = (products || []).filter((product) =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    if (!searchQuery.trim()) return;
+    const results = products.filter((p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setSearchResults(results);
     setShowSuggestions(false);
@@ -244,9 +217,7 @@ useEffect(() => {
     navigate("/");
   };
 
-  const premiumProducts = (products || [])
-    .filter((p) => p.price > 5000)
-    .slice(0, 12);
+  const premiumProducts = products.filter((p) => p.price > 5000).slice(0, 12);
 
   return (
     <>
