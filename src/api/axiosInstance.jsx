@@ -1,7 +1,10 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "https://json-server-backend-870m.onrender.com", // 👈 change here once, works everywhere
+  baseURL: import.meta.env.VITE_API_URL, // dynamically set from .env or deployment
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 export default axiosInstance;
