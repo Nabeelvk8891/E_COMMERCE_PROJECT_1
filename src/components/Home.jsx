@@ -14,9 +14,9 @@ import { getProducts } from "../api/productsApi";
 import { getCart, addCartItem, updateCartItem } from "../api/cartApi";
 
 const ProductCard = ({ product, addToCart, cartItems = [] }) => {
-  // ✅ Updated: check if product is in cart correctly
+  // Ensure cartItems is always an array
   const isInCart = cartItems.some(
-    (item) => item.productId === product.id
+    (item) => item.productId == product.id || item.id == product.id
   );
 
   let stockStatus = "";
@@ -134,77 +134,45 @@ const Home = () => {
   }, [user]);
 
   const addToCart = async (product) => {
-    if (!user) {
-      alert("Please log in to add items to your cart.");
-      navigate("/login");
-      return;
-    }
-
-    try {
-      // Update cart locally first
-      setCartItems((prev) => {
-        const existingItem = prev.find((item) => item.productId === product.id);
-        if (existingItem) {
-          return prev.map((item) =>
-            item.productId === product.id
-              ? { ...item, quantity: (item.quantity || 1) + 1 }
-              : item
-          );
-        } else {
-          const today = new Date().toLocaleDateString("en-GB");
-          return [
-            ...prev,
-            {
-              userId: user.id,
-              productId: product.id,
-              name: product.name,
-              price: product.price,
-              mrp: product.mrp,
-              img: product.img,
-              quantity: 1,
-              stock: product.stock,
-              date: today,
-            },
-          ];
-        }
-      });
-
-      // Fetch server cart
-      const cartRes = await getCart(user.id);
-      const cart = cartRes?.data || [];
-      const existingItem = cart.find((item) => item.productId === product.id);
-
-      if (existingItem) {
-        await updateCartItem(existingItem.id, {
-          ...existingItem,
-          quantity: (existingItem.quantity || 1) + 1,
-        });
-        setPopup(`${product.name} quantity updated!`);
-      } else {
-        const today = new Date().toLocaleDateString("en-GB");
-        await addCartItem({
-          userId: user.id,
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          mrp: product.mrp,
-          img: product.img,
-          quantity: 1,
-          stock: product.stock,
-          date: today,
-        });
-        setPopup(`${product.name} added to cart!`);
+      if (!user) {
+        alert("Please log in to add items to your cart.");
+        navigate("/login");
+        return;
       }
-
-      // ✅ Sync local cart with server
-      const updatedCart = await getCart(user.id);
-      setCartItems(updatedCart?.data || []);
-
-      setTimeout(() => setPopup(null), 3000);
-    } catch (err) {
-      console.error("Error adding to cart:", err);
-    }
-  };
+  
+      try {
+        const cart = await getCart(user.id);
+        const existingItem = cart.find((item) => item.productId === product.id);
+        const today = new Date().toLocaleDateString("en-GB");
+  
+        if (existingItem) {
+          await updateCartItem(existingItem.id, {
+            ...existingItem,
+            quantity: (existingItem.quantity || 1) + 1,
+          });
+          setPopup(`${product.name} quantity updated!`);
+        } else {
+          await addCartItem({
+            userId: user.id,
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            mrp: product.mrp,
+            img: product.img,
+            quantity: 1,
+            stock: product.stock,
+            date: today,
+          });
+          setPopup(`${product.name} added to cart!`);
+        }
+  
+        const updatedCart = await getCart(user.id);
+        setCartItems(updatedCart);
+        setTimeout(() => setPopup(null), 3000);
+      } catch (err) {
+        console.error("Error adding to cart:", err);
+      }
+    };
 
   const handleSearchChange = (e) => {
     const query = e.target.value;
