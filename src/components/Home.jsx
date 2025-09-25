@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import logo from "../assets/images/zeyoralogo.png";
+import logo from "../assets/images/zeyoraLogo.png";
 import { TiShoppingCart } from "react-icons/ti";
 import { IoPersonAdd } from "react-icons/io5";
 import { FaRegCircleUser } from "react-icons/fa6";

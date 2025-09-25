@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/images/zeyoralogo.png";
+import logo from "../assets/images/zeyoraLogo.png";
 import pic from "../assets/images/1.jpg";
 import { HiOutlineMenu, HiOutlineX } from "react-icons/hi";
 

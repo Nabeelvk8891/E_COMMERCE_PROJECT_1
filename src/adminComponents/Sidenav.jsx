@@ -9,7 +9,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import logoFull from "../assets/images/zeyoralogo.png";     
+import logoFull from "../assets/images/zeyoraLogo.png";     
 import logoIcon from "../assets/images/zeyoralogoleft.png"; 
 
 const SidebarNav = ({ isHovered, setIsHovered, isMobileOpen, setIsMobileOpen }) => {
